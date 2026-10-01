@@ -75,6 +75,10 @@ Renderer-owned default legend labels follow `meta.locale`; author a
 `meta.legend.entries.*.label` override only when the diagram needs different
 domain wording, and keep that authored override in the primary language.
 
+German is supported as `meta.locale: "de"`: the reader UI a reader sees first
+(passport, popover, legend, navigation, finder, toolbar) is German, rarer
+controls fall back to English.
+
 ## Visual preset default
 
 Omit `meta.visual_preset` by default. The renderer then opens the diagram in
@@ -175,6 +179,28 @@ Main phases use columns `0..4`; event and terminal bands use columns `0..2`.
 Event/terminal column `N` aligns to the same x coordinate as main column
 `N + 2`. A recoverable failure needs a real transition back to an active state.
 A card or guided view saying “retry” is not topology.
+
+## Reader details (architecture, optional)
+
+All fields below are optional; documents without them render byte-identically.
+
+- `components[].details` and `connections[].details`: plain text up to 4000
+  characters for the detail popover. Blank lines separate paragraphs; lines
+  starting with `- ` become a list. Never HTML: markup stays literal text. On
+  connections, `details` may also be `{ "forward": "...", "back": "..." }` to
+  describe each direction separately.
+- `components[].accent`: color override from a fixed palette (`red`, `orange`,
+  `amber`, `yellow`, `lime`, `green`, `teal`, `cyan`, `blue`, `indigo`,
+  `violet`, `pink`, `slate`). The type keeps its sigil, passport kind and
+  legend entry, so say in a legend label or card what an accent means.
+- `connections[].direction: "both"`: one route with arrowheads at both ends.
+- `connections[].labelPlacement: "beside"`: the label sits next to the middle
+  of its route, away from a reverse connection between the same components.
+  Set it on both halves of a request/response pair.
+- `meta.viewer`: `click_zoom` (default `false`: a click opens the popover and
+  never moves the camera; zoom stays with the controls and the wheel) and
+  `detail_placement` (`"anchored"` beside the element, default, or `"docked"`
+  in the upper left corner).
 
 ## Repository evidence
 
