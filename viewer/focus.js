@@ -28,6 +28,10 @@
       var copyBtn = document.getElementById('btn-focus-copy');
       var relationsBtn = document.getElementById('btn-focus-relations');
       var clearBtn = document.getElementById('btn-focus-clear');
+      var notes = document.getElementById('focus-notes');
+      var viewerOptions = Archify.viewerOptions || { click_zoom: false, detail_placement: 'anchored' };
+      var readerDetails = Archify.readerDetails || { nodes: {}, edges: {} };
+      chip.setAttribute('data-placement', viewerOptions.detail_placement);
       var activeIds = [];
       var hoveredRelationship = null;
       var focusedRelationship = null;
@@ -48,6 +52,114 @@
       }
       function edges() {
         return Array.prototype.slice.call(svg.querySelectorAll('[data-edge-from][data-edge-to]'));
+      }
+      function clickZoomEnabled() {
+        return viewerOptions.click_zoom === true;
+      }
+      function revealFromReader(ids, options) {
+        if (!clickZoomEnabled() || !Archify.view || typeof Archify.view.reveal !== 'function') return null;
+        return Archify.view.reveal(ids, options);
+      }
+      function ownDetails(map, key) {
+        return map && Object.prototype.hasOwnProperty.call(map, key) && typeof map[key] === 'string' && map[key].trim()
+          ? map[key] : '';
+      }
+      // Reader notes are authored plain text. Blank lines separate paragraphs,
+      // lines starting with "- ", "* " or a bullet form a list. Everything is
+      // written through textContent; markup in the source stays literal text.
+      function renderNotes(text, heading) {
+        return renderNoteSections(text ? [{ text: text, heading: heading }] : []);
+      }
+      function renderNoteSections(sections) {
+        if (!notes) return false;
+        notes.textContent = '';
+        (sections || []).forEach(function (section) {
+          if (section && section.text) appendNoteSection(section.text, section.heading);
+        });
+        notes.hidden = !notes.childNodes.length;
+        return !notes.hidden;
+      }
+      function appendNoteSection(text, heading) {
+        if (heading) {
+          var title = document.createElement('span');
+          title.className = 'semantic-passport-notes-heading';
+          title.textContent = heading;
+          notes.appendChild(title);
+        }
+        String(text).replace(/\r\n?/g, '\n').split(/\n[ \t]*\n/).forEach(function (block) {
+          var list = null;
+          var paragraph = [];
+          function flushParagraph() {
+            if (!paragraph.length) return;
+            var p = document.createElement('p');
+            p.textContent = paragraph.join('\n');
+            notes.appendChild(p);
+            paragraph = [];
+          }
+          block.split('\n').forEach(function (line) {
+            if (!line.trim()) return;
+            var bullet = line.match(/^\s*(?:[-*\u2022])\s+(.*)$/);
+            if (bullet) {
+              flushParagraph();
+              if (!list) {
+                list = document.createElement('ul');
+                notes.appendChild(list);
+              }
+              var item = document.createElement('li');
+              item.textContent = bullet[1];
+              list.appendChild(item);
+            } else {
+              list = null;
+              paragraph.push(line.trim());
+            }
+          });
+          flushParagraph();
+        });
+      }
+      // A relationship can carry one text, or separate forward/back texts, and
+      // a reverse relationship between the same two components contributes its
+      // own text as the way back. Sections read "Forward · A → B", "Back · B → A".
+      function relationshipNoteSections(record) {
+        var sections = [];
+        var arrow = ' \u2192 ';
+        var forwardRoute = record.fromLabel + arrow + record.toLabel;
+        var backRoute = record.toLabel + arrow + record.fromLabel;
+        var forwardTitle = viewerText('viewer.passport.notes.forward') + ' \u00b7 ';
+        var backTitle = viewerText('viewer.passport.notes.back') + ' \u00b7 ';
+        function entryFor(key) {
+          var map = readerDetails.edges;
+          return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : null;
+        }
+        function addSplit(entry, reversed) {
+          if (!entry) return;
+          if (typeof entry === 'string') {
+            if (!entry.trim()) return;
+            sections.push(reversed
+              ? { heading: backTitle + backRoute, text: entry }
+              : { heading: hasReverse
+                ? forwardTitle + forwardRoute
+                : viewerText('viewer.passport.notes.relationship') + ' \u00b7 ' + (both ? record.fromLabel + ' \u2194 ' + record.toLabel : forwardRoute), text: entry });
+            return;
+          }
+          if (typeof entry !== 'object') return;
+          var ahead = reversed ? entry.back : entry.forward;
+          var behind = reversed ? entry.forward : entry.back;
+          if (typeof ahead === 'string' && ahead.trim()) sections.push({ heading: forwardTitle + forwardRoute, text: ahead });
+          if (typeof behind === 'string' && behind.trim()) sections.push({ heading: backTitle + backRoute, text: behind });
+        }
+        var pinnedEdge = svg.querySelector('[data-edge-key="' + record.key + '"][data-edge-direction="both"]');
+        var both = !!pinnedEdge;
+        var reverseKeys = [];
+        edges().forEach(function (edge) {
+          var key = edge.getAttribute('data-edge-key');
+          if (!key || reverseKeys.indexOf(key) !== -1 || key === record.key) return;
+          if (edge.getAttribute('data-edge-from') !== record.to || edge.getAttribute('data-edge-to') !== record.from) return;
+          if (entryFor(key)) reverseKeys.push(key);
+        });
+        var hasReverse = reverseKeys.length > 0;
+        addSplit(entryFor(record.key), false);
+        reverseKeys.forEach(function (key) { addSplit(entryFor(key), true); });
+        return sections;
       }
       function nodeLabel(node, fallback) {
         return node.getAttribute('data-node-label') || (node.getAttribute('aria-label') || fallback).replace(/^Focus\s+/, '');
@@ -228,8 +340,8 @@
               encodeURIComponent(activeIds[0]) + '&reach=' + direction);
           } catch (_) {}
         }
-        if (options.reveal !== false && Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal(result.nodeIds, { includeNeighbors: false, reason: 'reachability' });
+        if (options.reveal !== false) {
+          revealFromReader(result.nodeIds, { includeNeighbors: false, reason: 'reachability' });
         }
         requestLensPlacement();
         return true;
@@ -382,6 +494,7 @@
         semanticId.textContent = id;
         semanticId.hidden = false;
         renderSourceEvidence(id);
+        renderNotes(ownDetails(readerDetails.nodes, id));
       }
       function relationshipsFor(id, byId) {
         var seen = {};
@@ -771,6 +884,7 @@
         }) || null;
       }
       function revealPinnedRelationship(record) {
+        if (!clickZoomEnabled()) return;
         function reveal() {
           if (!record || pinnedRelationshipKey !== record.key) return true;
           if (!Archify.view || typeof Archify.view.reveal !== 'function') return false;
@@ -813,7 +927,10 @@
           to: record.toLabel,
           label: record.label
         });
+        var relationshipSections = relationshipNoteSections(record);
+        if (relationshipSections.length) renderNoteSections(relationshipSections);
         revealPinnedRelationship(record);
+        requestLensPlacement();
         if (options.updateUrl !== false && record.id) {
           try { history.replaceState(null, '', location.pathname + location.search + '#relation=' + encodeURIComponent(record.id)); } catch (_) {}
         }
@@ -1018,11 +1135,108 @@
         });
       }
       var lensFrame = 0;
+      function rectArea(a, b) {
+        var width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        var height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return width > 0 && height > 0 ? width * height : 0;
+      }
+      function anchorRectFor(node) {
+        // A pinned relationship anchors on the route plus both endpoint
+        // components, so the popover covers neither the arrow nor its ends.
+        var shapes = [];
+        if (pinnedRelationshipKey) {
+          Array.prototype.forEach.call(svg.querySelectorAll('[data-edge-key]'), function (edge) {
+            if (edge.getAttribute('data-edge-key') !== pinnedRelationshipKey) return;
+            shapes.push(edge);
+            [edge.getAttribute('data-edge-from'), edge.getAttribute('data-edge-to')].forEach(function (id) {
+              var endpoint = id ? svg.querySelector('[data-node-id="' + id + '"]') : null;
+              if (endpoint && shapes.indexOf(endpoint) === -1) shapes.push(endpoint);
+            });
+          });
+        }
+        if (!shapes.length) shapes = [node];
+        var rect = null;
+        shapes.forEach(function (shape) {
+          var box = shape.getBoundingClientRect();
+          if (!box || (box.width <= 0 && box.height <= 0)) return;
+          rect = rect ? {
+            left: Math.min(rect.left, box.left),
+            top: Math.min(rect.top, box.top),
+            right: Math.max(rect.right, box.right),
+            bottom: Math.max(rect.bottom, box.bottom)
+          } : { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+        });
+        return rect;
+      }
+      // Anchored placement: right of the element, else left, else below or
+      // above, never on top of the element when any side has room. Candidates
+      // are clamped into the visible part of the canvas and scored by overlap
+      // with the element, overlap with the zoom controls and the legend, and
+      // how far clamping had to move them.
+      function placeAnchoredLens(node) {
+        var anchorBox = anchorRectFor(node);
+        if (!anchorBox) return false;
+        var containerRect = container.getBoundingClientRect();
+        var originX = containerRect.left + (container.clientLeft || 0);
+        var originY = containerRect.top + (container.clientTop || 0);
+        var anchor = {
+          left: anchorBox.left - originX,
+          top: anchorBox.top - originY,
+          right: anchorBox.right - originX,
+          bottom: anchorBox.bottom - originY
+        };
+        var padding = 12;
+        var gap = 12;
+        var width = chip.offsetWidth;
+        var height = chip.offsetHeight;
+        var areaWidth = container.clientWidth;
+        var visibleTop = Math.max(padding, -originY + padding);
+        var visibleBottom = Math.min(container.clientHeight - padding, window.innerHeight - originY - padding);
+        function clampX(value) { return Math.max(padding, Math.min(Math.max(padding, areaWidth - padding - width), value)); }
+        function clampY(value) { return Math.max(visibleTop, Math.min(Math.max(visibleTop, visibleBottom - height), value)); }
+        var centerX = (anchor.left + anchor.right) / 2;
+        var centerY = (anchor.top + anchor.bottom) / 2;
+        var obstacles = [svg.querySelector('[data-legend]'), container.querySelector('.diagram-nav')]
+          .filter(function (element) {
+            if (!element || element.hidden) return false;
+            var style = window.getComputedStyle(element);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+          })
+          .map(function (element) {
+            var box = element.getBoundingClientRect();
+            return { left: box.left - originX, top: box.top - originY, right: box.right - originX, bottom: box.bottom - originY };
+          });
+        var best = null;
+        [
+          { side: 'right', x: anchor.right + gap, y: centerY - height / 2 },
+          { side: 'left', x: anchor.left - gap - width, y: centerY - height / 2 },
+          { side: 'bottom', x: centerX - width / 2, y: anchor.bottom + gap },
+          { side: 'top', x: centerX - width / 2, y: anchor.top - gap - height }
+        ].forEach(function (candidate, order) {
+          var x = clampX(candidate.x);
+          var y = clampY(candidate.y);
+          var box = { left: x, top: y, right: x + width, bottom: y + height };
+          var horizontal = candidate.side === 'left' || candidate.side === 'right';
+          var shift = horizontal ? Math.abs(x - candidate.x) : Math.abs(y - candidate.y);
+          var score = rectArea(box, anchor) * 50 +
+            obstacles.reduce(function (sum, obstacle) { return sum + rectArea(box, obstacle); }, 0) +
+            shift * 40 + order;
+          if (!best || score < best.score) best = { side: candidate.side, x: x, y: y, score: score };
+        });
+        chip.style.left = Math.round(best.x) + 'px';
+        chip.style.top = Math.round(best.y) + 'px';
+        chip.setAttribute('data-placement-side', best.side);
+        return true;
+      }
       function placeRelationshipLens() {
         lensFrame = 0;
         if (chip.hidden || activeIds.length !== 1) return;
         var node = svg.querySelector('[data-node-id="' + activeIds[0] + '"]');
         if (!node) return;
+        if (viewerOptions.detail_placement === 'anchored' && window.innerWidth > 720 && placeAnchoredLens(node)) {
+          if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
+          return;
+        }
         var containerRect = container.getBoundingClientRect();
         var nodeRect = node.getBoundingClientRect();
         if (containerRect.bottom <= 0 || containerRect.top >= window.innerHeight) return;
@@ -1125,6 +1339,10 @@
         label.textContent = '';
         detail.textContent = '';
         detail.hidden = true;
+        if (notes) {
+          notes.textContent = '';
+          notes.hidden = true;
+        }
         kind.textContent = '';
         kind.hidden = true;
         context.textContent = '';
@@ -1151,7 +1369,11 @@
         relationsBtn.setAttribute('aria-expanded', 'false');
         chip.removeAttribute('data-relations-expanded');
         chip.style.removeProperty('top');
-        if (options.preserveView !== true && Archify.view && typeof Archify.view.reset === 'function') {
+        chip.style.removeProperty('left');
+        chip.removeAttribute('data-placement-side');
+        // Without click zoom the focus never moved the camera; closing the
+        // popover must keep the reader's own zoom and pan.
+        if (options.preserveView !== true && clickZoomEnabled() && Archify.view && typeof Archify.view.reset === 'function') {
           Archify.view.reset({ automatic: true });
         }
         if (options.updateUrl !== false) {
@@ -1278,9 +1500,7 @@
         if (node) {
           var id = node.getAttribute('data-node-id');
           set(id);
-          if (activeIds.indexOf(id) !== -1 && Archify.view && typeof Archify.view.reveal === 'function') {
-            Archify.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
-          }
+          if (activeIds.indexOf(id) !== -1) revealFromReader([id], { includeNeighbors: true, reason: 'focus' });
         }
         else if (activeIds.length) clear();
       });
@@ -1290,9 +1510,7 @@
         event.preventDefault();
         var id = node.getAttribute('data-node-id');
         set(id);
-        if (activeIds.indexOf(id) !== -1 && Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
-        }
+        if (activeIds.indexOf(id) !== -1) revealFromReader([id], { includeNeighbors: true, reason: 'focus' });
       });
       clearBtn.addEventListener('click', function () { clear({ restoreFocus: true }); });
       copyBtn.addEventListener('click', copyFocusLink);
@@ -1316,9 +1534,7 @@
           Archify.guidedViews.showAll({ clearFocus: false, updateUrl: false });
         }
         set(id, { toggle: false });
-        if (Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal([id], { includeNeighbors: true, reason: 'relationship' });
-        }
+        revealFromReader([id], { includeNeighbors: true, reason: 'relationship' });
         var node = svg.querySelector('[data-node-id="' + id + '"]');
         if (node) {
           try { node.focus({ preventScroll: true }); } catch (_) { try { node.focus(); } catch (_) {} }
@@ -1372,6 +1588,17 @@
       }, true);
       window.addEventListener('scroll', requestLensPlacement, { passive: true });
       window.addEventListener('resize', requestLensPlacement);
+      svg.addEventListener('transitionend', function (event) {
+        if (event.target === svg) requestLensPlacement();
+      });
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape' || event.defaultPrevented || chip.hidden) return;
+        if (html.getAttribute('data-guide-open') === 'true') return;
+        var finder = document.getElementById('node-finder');
+        if (finder && !finder.hidden) return;
+        event.preventDefault();
+        clear({ restoreFocus: true, updateUrl: true });
+      });
       container.addEventListener('scroll', requestLensPlacement, { passive: true });
       document.addEventListener('visibilitychange', function () {
         if (document.hidden) removeRelationshipPulse();

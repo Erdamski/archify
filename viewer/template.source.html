@@ -474,6 +474,94 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       --toolbar-menu-bg: #fbf8f1;
     }
 
+    /* Accent palette: optional color override per node ("accent" in the spec),
+       independent of the semantic type. Fixed tokens only; strokes keep at
+       least 3:1 against the canvas and accent text at least 4.5:1 in both
+       themes. The type keeps its sigil, passport kind and legend meaning. */
+    :root,
+    [data-theme="dark"] {
+      --accent-red-fill: rgba(248, 113, 113, 0.16);
+      --accent-red-stroke: #f87171;
+      --accent-red-text: #f87171;
+      --accent-orange-fill: rgba(251, 146, 60, 0.16);
+      --accent-orange-stroke: #fb923c;
+      --accent-orange-text: #fb923c;
+      --accent-amber-fill: rgba(251, 191, 36, 0.16);
+      --accent-amber-stroke: #fbbf24;
+      --accent-amber-text: #fbbf24;
+      --accent-yellow-fill: rgba(250, 204, 21, 0.16);
+      --accent-yellow-stroke: #facc15;
+      --accent-yellow-text: #facc15;
+      --accent-lime-fill: rgba(163, 230, 53, 0.16);
+      --accent-lime-stroke: #a3e635;
+      --accent-lime-text: #a3e635;
+      --accent-green-fill: rgba(74, 222, 128, 0.16);
+      --accent-green-stroke: #4ade80;
+      --accent-green-text: #4ade80;
+      --accent-teal-fill: rgba(45, 212, 191, 0.16);
+      --accent-teal-stroke: #2dd4bf;
+      --accent-teal-text: #2dd4bf;
+      --accent-cyan-fill: rgba(34, 211, 238, 0.16);
+      --accent-cyan-stroke: #22d3ee;
+      --accent-cyan-text: #22d3ee;
+      --accent-blue-fill: rgba(96, 165, 250, 0.16);
+      --accent-blue-stroke: #60a5fa;
+      --accent-blue-text: #60a5fa;
+      --accent-indigo-fill: rgba(129, 140, 248, 0.16);
+      --accent-indigo-stroke: #818cf8;
+      --accent-indigo-text: #818cf8;
+      --accent-violet-fill: rgba(167, 139, 250, 0.16);
+      --accent-violet-stroke: #a78bfa;
+      --accent-violet-text: #a78bfa;
+      --accent-pink-fill: rgba(244, 114, 182, 0.16);
+      --accent-pink-stroke: #f472b6;
+      --accent-pink-text: #f472b6;
+      --accent-slate-fill: rgba(148, 163, 184, 0.16);
+      --accent-slate-stroke: #94a3b8;
+      --accent-slate-text: #94a3b8;
+    }
+    [data-theme="light"] {
+      --accent-red-fill: rgba(220, 38, 38, 0.12);
+      --accent-red-stroke: #dc2626;
+      --accent-red-text: #b91c1c;
+      --accent-orange-fill: rgba(234, 88, 12, 0.12);
+      --accent-orange-stroke: #ea580c;
+      --accent-orange-text: #c2410c;
+      --accent-amber-fill: rgba(217, 119, 6, 0.12);
+      --accent-amber-stroke: #d97706;
+      --accent-amber-text: #b45309;
+      --accent-yellow-fill: rgba(168, 127, 0, 0.12);
+      --accent-yellow-stroke: #a87f00;
+      --accent-yellow-text: #a16207;
+      --accent-lime-fill: rgba(90, 143, 14, 0.12);
+      --accent-lime-stroke: #5a8f0e;
+      --accent-lime-text: #4d7c0f;
+      --accent-green-fill: rgba(22, 163, 74, 0.12);
+      --accent-green-stroke: #16a34a;
+      --accent-green-text: #15803d;
+      --accent-teal-fill: rgba(13, 148, 136, 0.12);
+      --accent-teal-stroke: #0d9488;
+      --accent-teal-text: #0f766e;
+      --accent-cyan-fill: rgba(8, 145, 178, 0.12);
+      --accent-cyan-stroke: #0891b2;
+      --accent-cyan-text: #0e7490;
+      --accent-blue-fill: rgba(37, 99, 235, 0.12);
+      --accent-blue-stroke: #2563eb;
+      --accent-blue-text: #1d4ed8;
+      --accent-indigo-fill: rgba(79, 70, 229, 0.12);
+      --accent-indigo-stroke: #4f46e5;
+      --accent-indigo-text: #4338ca;
+      --accent-violet-fill: rgba(124, 58, 237, 0.12);
+      --accent-violet-stroke: #7c3aed;
+      --accent-violet-text: #6d28d9;
+      --accent-pink-fill: rgba(219, 39, 119, 0.12);
+      --accent-pink-stroke: #db2777;
+      --accent-pink-text: #be185d;
+      --accent-slate-fill: rgba(100, 116, 139, 0.12);
+      --accent-slate-stroke: #64748b;
+      --accent-slate-text: #475569;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -1857,6 +1945,41 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       white-space: nowrap;
     }
     .semantic-passport-detail[hidden] { display: none; }
+    .semantic-passport-notes {
+      margin: 0.45rem 0 0.35rem;
+      max-height: min(18rem, 46vh);
+      overflow-y: auto;
+      color: var(--toolbar-text);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .semantic-passport-notes[hidden] { display: none; }
+    .semantic-passport-notes p { margin: 0 0 0.4rem; white-space: pre-line; }
+    .semantic-passport-notes ul { margin: 0 0 0.4rem; padding-left: 1rem; }
+    .semantic-passport-notes li { margin: 0 0 0.15rem; }
+    .semantic-passport-notes > :last-child { margin-bottom: 0; }
+    .semantic-passport-notes-heading {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+      font-size: 0.625rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    @media (min-width: 721px) {
+      .focus-chip[data-placement="anchored"] {
+        width: min(24rem, calc(100% - 2rem));
+        max-width: calc(100% - 2rem);
+        max-height: calc(100% - 2rem);
+        overflow-y: auto;
+      }
+      /* The anchored popover leads with the notes; the relationship list
+         stays one click away behind the relations button. */
+      .focus-chip[data-placement="anchored"] .relationship-lens-actions #btn-focus-relations { display: block; }
+      .focus-chip[data-placement="anchored"]:not([data-relations-expanded="true"]) .relationship-lens-list { display: none; }
+      .focus-chip[data-placement="anchored"]:not([data-relations-expanded="true"]) .relationship-lens-head { border-bottom-color: transparent; }
+    }
     .semantic-passport-meta {
       display: flex;
       flex-wrap: wrap;
@@ -3096,6 +3219,45 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
          lane/arrow colors — so printing from dark theme doesn't put neon
          strokes and translucent dark fills on white paper. */
       :root, [data-theme="dark"], [data-theme="light"] {
+        --accent-red-fill: rgba(220, 38, 38, 0.12);
+        --accent-red-stroke: #dc2626;
+        --accent-red-text: #b91c1c;
+        --accent-orange-fill: rgba(234, 88, 12, 0.12);
+        --accent-orange-stroke: #ea580c;
+        --accent-orange-text: #c2410c;
+        --accent-amber-fill: rgba(217, 119, 6, 0.12);
+        --accent-amber-stroke: #d97706;
+        --accent-amber-text: #b45309;
+        --accent-yellow-fill: rgba(168, 127, 0, 0.12);
+        --accent-yellow-stroke: #a87f00;
+        --accent-yellow-text: #a16207;
+        --accent-lime-fill: rgba(90, 143, 14, 0.12);
+        --accent-lime-stroke: #5a8f0e;
+        --accent-lime-text: #4d7c0f;
+        --accent-green-fill: rgba(22, 163, 74, 0.12);
+        --accent-green-stroke: #16a34a;
+        --accent-green-text: #15803d;
+        --accent-teal-fill: rgba(13, 148, 136, 0.12);
+        --accent-teal-stroke: #0d9488;
+        --accent-teal-text: #0f766e;
+        --accent-cyan-fill: rgba(8, 145, 178, 0.12);
+        --accent-cyan-stroke: #0891b2;
+        --accent-cyan-text: #0e7490;
+        --accent-blue-fill: rgba(37, 99, 235, 0.12);
+        --accent-blue-stroke: #2563eb;
+        --accent-blue-text: #1d4ed8;
+        --accent-indigo-fill: rgba(79, 70, 229, 0.12);
+        --accent-indigo-stroke: #4f46e5;
+        --accent-indigo-text: #4338ca;
+        --accent-violet-fill: rgba(124, 58, 237, 0.12);
+        --accent-violet-stroke: #7c3aed;
+        --accent-violet-text: #6d28d9;
+        --accent-pink-fill: rgba(219, 39, 119, 0.12);
+        --accent-pink-stroke: #db2777;
+        --accent-pink-text: #be185d;
+        --accent-slate-fill: rgba(100, 116, 139, 0.12);
+        --accent-slate-stroke: #64748b;
+        --accent-slate-text: #475569;
         --bg: #ffffff;
         --grid: transparent;
         --panel: #ffffff;
@@ -4083,6 +4245,32 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     .t-security   { fill: var(--security-stroke); }
     .t-messagebus { fill: var(--messagebus-stroke); }
     .t-external   { fill: var(--external-stroke); }
+    .c-accent-red { fill: var(--accent-red-fill); stroke: var(--accent-red-stroke); }
+    .c-accent-orange { fill: var(--accent-orange-fill); stroke: var(--accent-orange-stroke); }
+    .c-accent-amber { fill: var(--accent-amber-fill); stroke: var(--accent-amber-stroke); }
+    .c-accent-yellow { fill: var(--accent-yellow-fill); stroke: var(--accent-yellow-stroke); }
+    .c-accent-lime { fill: var(--accent-lime-fill); stroke: var(--accent-lime-stroke); }
+    .c-accent-green { fill: var(--accent-green-fill); stroke: var(--accent-green-stroke); }
+    .c-accent-teal { fill: var(--accent-teal-fill); stroke: var(--accent-teal-stroke); }
+    .c-accent-cyan { fill: var(--accent-cyan-fill); stroke: var(--accent-cyan-stroke); }
+    .c-accent-blue { fill: var(--accent-blue-fill); stroke: var(--accent-blue-stroke); }
+    .c-accent-indigo { fill: var(--accent-indigo-fill); stroke: var(--accent-indigo-stroke); }
+    .c-accent-violet { fill: var(--accent-violet-fill); stroke: var(--accent-violet-stroke); }
+    .c-accent-pink { fill: var(--accent-pink-fill); stroke: var(--accent-pink-stroke); }
+    .c-accent-slate { fill: var(--accent-slate-fill); stroke: var(--accent-slate-stroke); }
+    .t-accent-red { fill: var(--accent-red-text); }
+    .t-accent-orange { fill: var(--accent-orange-text); }
+    .t-accent-amber { fill: var(--accent-amber-text); }
+    .t-accent-yellow { fill: var(--accent-yellow-text); }
+    .t-accent-lime { fill: var(--accent-lime-text); }
+    .t-accent-green { fill: var(--accent-green-text); }
+    .t-accent-teal { fill: var(--accent-teal-text); }
+    .t-accent-cyan { fill: var(--accent-cyan-text); }
+    .t-accent-blue { fill: var(--accent-blue-text); }
+    .t-accent-indigo { fill: var(--accent-indigo-text); }
+    .t-accent-violet { fill: var(--accent-violet-text); }
+    .t-accent-pink { fill: var(--accent-pink-text); }
+    .t-accent-slate { fill: var(--accent-slate-text); }
 
     /* Semantic Sigils are small authored role stamps, not icons from a brand
        pack and not viewer controls. Prefix selectors with svg so the canonical
@@ -5357,6 +5545,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <div class="relationship-lens-copy">
             <span class="relationship-lens-eyebrow">{{i18n:viewer.passport.eyebrow}}</span>
             <strong class="relationship-lens-title" id="relationship-lens-title"><span id="focus-label"></span></strong>
+            <div class="semantic-passport-notes" id="focus-notes" hidden aria-label="{{i18n:viewer.passport.notes}}"></div>
             <span class="semantic-passport-detail" id="focus-detail" hidden></span>
             <div class="semantic-passport-meta" id="focus-passport-meta" aria-label="{{i18n:viewer.passport.metadata}}">
               <span id="focus-kind" data-passport="kind"></span>
@@ -5515,6 +5704,34 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       catch (_) { return { locale: 'en', messages: {} }; }
     })();
     Archify.locale = archifyI18nData.locale || 'en';
+
+    // Reader interaction options. Defaults: a click opens the detail popover
+    // beside the element and never moves the camera; zoom stays with the zoom
+    // controls and the wheel. A spec may opt back in via meta.viewer.
+    Archify.viewerOptions = (function () {
+      var options = { click_zoom: false, detail_placement: 'anchored' };
+      var node = document.getElementById('archify-viewer-options');
+      try {
+        var authored = JSON.parse(node ? node.textContent : '{}') || {};
+        if (typeof authored.click_zoom === 'boolean') options.click_zoom = authored.click_zoom;
+        if (authored.detail_placement === 'anchored' || authored.detail_placement === 'docked') {
+          options.detail_placement = authored.detail_placement;
+        }
+      } catch (_) {}
+      return options;
+    })();
+    Archify.readerDetails = (function () {
+      var node = document.getElementById('archify-reader-details');
+      var empty = { nodes: {}, edges: {} };
+      try {
+        var parsed = JSON.parse(node ? node.textContent : 'null');
+        if (!parsed || typeof parsed !== 'object') return empty;
+        return {
+          nodes: parsed.nodes && typeof parsed.nodes === 'object' ? parsed.nodes : {},
+          edges: parsed.edges && typeof parsed.edges === 'object' ? parsed.edges : {}
+        };
+      } catch (_) { return empty; }
+    })();
 
     function viewerText(key, values) {
       var messages = archifyI18nData.messages || {};

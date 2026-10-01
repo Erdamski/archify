@@ -144,6 +144,9 @@
         if (Archify.viewerChromeLayout && typeof Archify.viewerChromeLayout.schedule === 'function') {
           Archify.viewerChromeLayout.schedule();
         }
+        // An anchored detail popover follows its element through zoom and pan.
+        if (Archify.viewerOptions && Archify.viewerOptions.detail_placement === 'anchored' &&
+            Archify.focus && typeof Archify.focus.reposition === 'function') Archify.focus.reposition();
       }
       function sampleRenderedState() {
         var transform = '';
@@ -451,6 +454,9 @@
         var guided = Archify.guidedViews && typeof Archify.guidedViews.focus === 'function'
           ? Archify.guidedViews.focus() : [];
         if (guided && guided.length) return reveal(guided, { reason: 'guided-sync' });
+        // Without click zoom a reader focus never owns the camera, so a resize
+        // or deep link must not frame it either.
+        if (!Archify.viewerOptions || Archify.viewerOptions.click_zoom !== true) return false;
         var active = Archify.focus && typeof Archify.focus.active === 'function' ? Archify.focus.active() : null;
         if (typeof active === 'string') return reveal([active], { includeNeighbors: true, reason: 'focus-sync' });
         if (Array.isArray(active) && active.length) return reveal(active, { reason: 'selection-sync' });

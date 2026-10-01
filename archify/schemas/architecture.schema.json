@@ -36,6 +36,7 @@
           }
         },
         "views": { "$ref": "common.schema.json#/$defs/guidedViews" },
+        "viewer": { "$ref": "common.schema.json#/$defs/viewerOptions" },
         "legend": {
           "type": "object",
           "additionalProperties": false,
@@ -95,6 +96,8 @@
           "label": { "type": "string", "minLength": 1 },
           "sublabel": { "type": "string" },
           "tag": { "type": "string" },
+          "details": { "$ref": "common.schema.json#/$defs/details" },
+          "accent": { "$ref": "common.schema.json#/$defs/accent" },
           "brand": { "$ref": "common.schema.json#/$defs/brandMark" },
           "sources": {
             "type": "array",
@@ -157,6 +160,9 @@
           "from": { "$ref": "common.schema.json#/$defs/id" },
           "to": { "$ref": "common.schema.json#/$defs/id" },
           "label": { "type": "string" },
+          "details": { "$ref": "common.schema.json#/$defs/edgeDetails" },
+          "direction": { "enum": ["forward", "both"] },
+          "labelPlacement": { "enum": ["inline", "beside"] },
           "variant": { "$ref": "common.schema.json#/$defs/variant" },
           "fromSide": { "$ref": "common.schema.json#/$defs/side" },
           "toSide": { "$ref": "common.schema.json#/$defs/side" },

@@ -567,7 +567,7 @@ function validateArchitecture() {
   const labelRects = [];
   for (const [connectionIndex, conn] of asArray(arch.connections).entries()) {
     if (!conn.label || !components.has(conn.from) || !components.has(conn.to)) continue;
-    const [lx, ly] = labelPoint(conn, pathFor(conn).points);
+    const [lx, ly] = connectionLabelPoint(conn, pathFor(conn).points);
     const w = Math.max(30, textUnits(conn.label) * 4.8 + 10);
     labelRects.push({ relation: conn, relationIndex: connectionIndex, label: conn.label, x: lx - w / 2, y: ly - 10, width: w, height: 14, lx, ly });
   }
@@ -607,7 +607,7 @@ function buildLayoutReport() {
   const labels = [];
   for (const conn of asArray(arch.connections)) {
     if (!conn.label || !components.has(conn.from) || !components.has(conn.to)) continue;
-    const [lx, ly] = labelPoint(conn, pathFor(conn).points);
+    const [lx, ly] = connectionLabelPoint(conn, pathFor(conn).points);
     const w = Math.max(30, textUnits(conn.label) * 4.8 + 10);
     labels.push({
       text: conn.label,
@@ -629,7 +629,7 @@ function buildLayoutReport() {
       .filter((conn) => components.has(conn.from) && components.has(conn.to))
       .map((conn) => {
         const routed = pathFor(conn);
-        const labelAt = conn.label ? labelPoint(conn, routed.points) : null;
+        const labelAt = conn.label ? connectionLabelPoint(conn, routed.points) : null;
         return connectionPath(conn, routed, labelAt);
       }),
     labels,
@@ -946,6 +946,61 @@ function pathFor(conn) {
   return routed;
 }
 
+// ---- Request/response pairs -------------------------------------------------
+// `labelPlacement: "beside"` puts a label next to the middle of its route
+// instead of on it, on the side away from the reverse relationship between the
+// same two components. A request/response pair then reads as two parallel
+// arrows with one label each, instead of two labels stacked on a short stub.
+function reverseConnectionOf(conn) {
+  return asArray(arch.connections).find((other) => other !== conn && other.from === conn.to && other.to === conn.from) || null;
+}
+
+function besideSegmentIndex(conn, points) {
+  if (Number.isInteger(conn.labelSegment)) return Math.min(points.length - 2, Math.max(0, conn.labelSegment));
+  let best = 0;
+  let bestLength = -1;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const length = Math.hypot(points[index + 1][0] - points[index][0], points[index + 1][1] - points[index][1]);
+    if (length > bestLength) { best = index; bestLength = length; }
+  }
+  return best;
+}
+
+function besideMidpoint(conn, points) {
+  const index = besideSegmentIndex(conn, points);
+  const [a, b] = [points[index], points[index + 1]];
+  return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, vertical: Math.abs(a[0] - b[0]) < Math.abs(a[1] - b[1]) };
+}
+
+function connectionLabelPoint(conn, points) {
+  if (conn.labelPlacement !== 'beside' || conn.labelAt || points.length < 2) return labelPoint(conn, points);
+  const middle = besideMidpoint(conn, points);
+  const partner = reverseConnectionOf(conn);
+  const partnerMiddle = partner ? besideMidpoint(partner, pathFor(partner).points) : null;
+  const width = Math.max(30, textUnits(conn.label || '') * 4.8 + 10);
+  const dx = conn.labelDx || 0;
+  const dy = conn.labelDy || 0;
+  if (middle.vertical) {
+    const side = partnerMiddle && partnerMiddle.x > middle.x ? -1 : 1;
+    return [middle.x + side * (width / 2 + 6) + dx, middle.y + 3 + dy];
+  }
+  const above = partnerMiddle ? partnerMiddle.y >= middle.y : true;
+  return [middle.x + dx, (above ? middle.y - 6 : middle.y + 16) + dy];
+}
+
+// Start arrowheads exist only in documents that ask for them, so the SVG of
+// every document without `direction: "both"` stays byte-identical.
+function renderStartMarkers() {
+  if (!asArray(arch.connections).some((conn) => conn.direction === 'both')) return '';
+  const variants = [['arrowhead', 'm-default'], ['arrowhead-emphasis', 'm-emphasis'], ['arrowhead-security', 'm-security'], ['arrowhead-dashed', 'm-dashed']];
+  return `
+        <defs>
+${variants.map(([id, cls]) => `          <marker id="${id}-start" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto-start-reverse">
+            <polygon points="0 0, 10 3.5, 0 7" class="${cls}" />
+          </marker>`).join('\n')}
+        </defs>`;
+}
+
 // ---- Rendering ---------------------------------------------------------------
 function renderBoundaryFrame(b, index) {
   const cls = b.kind === 'security-group' ? 'c-security-group' : 'c-region';
@@ -965,12 +1020,13 @@ function renderConnectionPath(conn, index) {
   const [cls, marker] = arrowClassMap[conn.variant || 'default'] || arrowClassMap.default;
   const routed = pathFor(conn);
   const strokeWidth = conn.width || (conn.variant === 'emphasis' ? 1.8 : 1.5);
-  return `        <path ${focusEdgeAttrs(conn.from, conn.to, conn.label, index, conn.id)} data-composition-points="${routePointsValue(routed.points)}" d="${routed.d}" class="${cls}"${animateAttr(arch.meta, 'edge', index)} stroke-width="${strokeWidth}" marker-end="url(#${marker})"/>`;
+  const both = conn.direction === 'both';
+  return `        <path ${focusEdgeAttrs(conn.from, conn.to, conn.label, index, conn.id)}${both ? ' data-edge-direction="both"' : ''} data-composition-points="${routePointsValue(routed.points)}" d="${routed.d}" class="${cls}"${animateAttr(arch.meta, 'edge', index)} stroke-width="${strokeWidth}"${both ? ` marker-start="url(#${marker}-start)"` : ''} marker-end="url(#${marker})"/>`;
 }
 
 function renderConnectionLabel(conn, index) {
   if (!conn.label) return '';
-  const [lx, ly] = labelPoint(conn, pathFor(conn).points);
+  const [lx, ly] = connectionLabelPoint(conn, pathFor(conn).points);
   const w = Math.max(30, textUnits(conn.label) * 4.8 + 10);
   return `        <g data-detail="context" ${focusEdgeAttrs(conn.from, conn.to, conn.label, index, conn.id)}>
           <rect x="${lx - w / 2}" y="${ly - 10}" width="${w}" height="14" rx="3" class="c-mask"/>
@@ -979,8 +1035,10 @@ function renderConnectionLabel(conn, index) {
 }
 
 function renderComponent(c) {
-  const fill = componentFill[c.type] || 'c-external';
-  const accent = componentText[c.type] || 't-muted';
+  // `accent` recolors the box and tag only; the semantic type keeps its sigil,
+  // passport kind and legend meaning.
+  const fill = c.accent ? `c-accent-${c.accent}` : (componentFill[c.type] || 'c-external');
+  const accent = c.accent ? `t-accent-${c.accent}` : (componentText[c.type] || 't-muted');
   const cx = c.cx;
   const hasSub = c.sublabel != null && c.sublabel !== '';
   const labelY = hasSub ? c.y + c.height / 2 - 2 : c.y + c.height / 2 + 4;
@@ -993,7 +1051,7 @@ function renderComponent(c) {
   const brand = renderBrandMark(c, { x: c.x + c.width - 22, y: c.y + 6 });
   const labelFontSize = fittedNodeFontSize(c.label, brandLabelFitWidth(c, c.width), 11, 8);
   const passport = { kind: c.type, sublabel: c.sublabel, tag: c.tag, context: componentContext(c), ...brandMetadataFor(c) };
-  return `        <g ${focusNodeAttrs(c.id, c.label, passport, arch.meta.locale)}>
+  return `        <g ${focusNodeAttrs(c.id, c.label, passport, arch.meta.locale)}${c.accent ? ` data-node-accent="${esc(c.accent)}"` : ''}>
           ${focusNodeTitle(c.label, passport)}
           <rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="6" class="c-mask"/>
           <rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="6" class="${fill}"${animateAttr(arch.meta, 'node', componentSteps.get(c.id))} stroke-width="1.5"/>
@@ -1008,7 +1066,7 @@ function renderLegend() {
     pointsFor: (connection) => pathFor(connection).points,
     labelRectFor: (connection) => {
       if (!connection.label) return null;
-      const [x, y] = labelPoint(connection, pathFor(connection).points);
+      const [x, y] = connectionLabelPoint(connection, pathFor(connection).points);
       const width = Math.max(30, textUnits(connection.label) * 4.8 + 10);
       return { x: x - width / 2, y: y - 10, width, height: 14 };
     },
@@ -1037,7 +1095,7 @@ function renderLegend() {
 function renderSvg() {
   return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" ${svgRootAttrs(arch.meta)}>
 ${svgAccessibleText(arch.meta, 'architecture')}
-${renderDefinitions()}
+${renderDefinitions()}${renderStartMarkers()}
 
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
@@ -1062,6 +1120,27 @@ ${renderLegend()}
       </svg>`;
 }
 
+// Reader notes travel as inert JSON beside the SVG, never inside it: exports
+// stay byte-stable and the viewer renders them with textContent only.
+function collectReaderDetails() {
+  const nodes = {};
+  const edges = {};
+  for (const c of asArray(arch.components)) {
+    if (typeof c.details === 'string' && c.details.trim()) nodes[c.id] = c.details;
+  }
+  asArray(arch.connections).forEach((conn, index) => {
+    if (typeof conn.details === 'string' && conn.details.trim()) edges[String(index)] = conn.details;
+    else if (conn.details && typeof conn.details === 'object') {
+      const split = {};
+      for (const direction of ['forward', 'back']) {
+        if (typeof conn.details[direction] === 'string' && conn.details[direction].trim()) split[direction] = conn.details[direction];
+      }
+      if (Object.keys(split).length) edges[String(index)] = split;
+    }
+  });
+  return Object.keys(nodes).length || Object.keys(edges).length ? { nodes, edges } : null;
+}
+
 validateArchitecture();
 if (layoutJsonMode) {
   console.log(JSON.stringify(buildLayoutReport(), null, 2));
@@ -1075,4 +1154,5 @@ writeDiagram({
   svg: renderSvg(),
   cards: arch.cards,
   sourceEvidence,
+  readerDetails: collectReaderDetails(),
 });

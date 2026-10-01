@@ -132,6 +132,8 @@ export function applyTemplate(template, {
   visualPreset = 'classic',
   guidedViews = [],
   sourceEvidence = null,
+  readerDetails = null,
+  viewerOptions = null,
 }) {
   if (!SVG_SLOT_RE.test(template)) {
     throw new Error('applyTemplate: template missing ARCHIFY:SVG_SLOT sentinel');
@@ -162,7 +164,13 @@ export function applyTemplate(template, {
   const renderedSubtitle = typeof subtitle === 'string' && subtitle.trim()
     ? `<p class="subtitle">${esc(subtitle)}</p>`
     : '';
-  const i18nData = `    <script id="archify-i18n-data" type="application/json">${i18nJson}</script>`;
+  // Optional payloads are emitted only when authored, so documents without
+  // reader details or viewer options keep their exact previous output.
+  const optionalData = [
+    readerDetails ? `    <script id="archify-reader-details" type="application/json">${serializeScriptJson(readerDetails)}</script>` : '',
+    viewerOptions ? `    <script id="archify-viewer-options" type="application/json">${serializeScriptJson(viewerOptions)}</script>` : '',
+  ].filter(Boolean).map((line) => `\n${line}`).join('');
+  const i18nData = `    <script id="archify-i18n-data" type="application/json">${i18nJson}</script>${optionalData}`;
   const localizedTemplate = localizeTemplate(template, resolvedLocale);
   const templateWithI18n = localizedTemplate.includes(I18N_PLACEHOLDER)
     ? localizedTemplate.replace(I18N_PLACEHOLDER, () => i18nData)

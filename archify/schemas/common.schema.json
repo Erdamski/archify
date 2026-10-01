@@ -8,7 +8,40 @@
       "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
     },
     "locale": {
-      "enum": ["en", "zh-CN"]
+      "enum": ["en", "zh-CN", "de"]
+    },
+    "details": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "description": "Plain-text reader notes shown in the viewer detail popover. Blank lines separate paragraphs; lines starting with '- ' form a list. Never interpreted as HTML."
+    },
+    "edgeDetails": {
+      "anyOf": [
+        { "$ref": "#/$defs/details" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "forward": { "$ref": "#/$defs/details" },
+            "back": { "$ref": "#/$defs/details" }
+          }
+        }
+      ],
+      "description": "Reader notes for a relationship: one text, or separate texts for the forward (from -> to) and back (to -> from) direction."
+    },
+    "accent": {
+      "enum": ["red", "orange", "amber", "yellow", "lime", "green", "teal", "cyan", "blue", "indigo", "violet", "pink", "slate"],
+      "description": "Optional color override from a fixed token palette. The semantic type keeps its sigil and legend meaning."
+    },
+    "viewerOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "click_zoom": { "type": "boolean" },
+        "detail_placement": { "enum": ["anchored", "docked"] }
+      }
     },
     "animation": {
       "enum": ["trace", "none"]
