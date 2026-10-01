@@ -74,7 +74,9 @@ test('relationship lens groups incoming, outgoing, and self-loop paths and follo
   assert.match(html, /data-relationship-from/);
   assert.match(html, /data-relationship-to/);
   assert.match(html, /set\(id, \{ toggle: false \}\)/);
-  assert.match(html, /Archify\.view\.reveal\(\[id\], \{ includeNeighbors: true, reason: 'relationship' \}\)/);
+  // Fork: reader-initiated reveals go through the click-zoom gate (meta.viewer.click_zoom).
+  assert.match(html, /revealFromReader\(\[id\], \{ includeNeighbors: true, reason: 'relationship' \}\)/);
+  assert.match(html, /function revealFromReader\(ids, options\) \{\s+if \(!clickZoomEnabled\(\)/);
   assert.doesNotMatch(svg(html), /relationship-lens|Connected relationships/);
 });
 
