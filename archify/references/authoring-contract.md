@@ -201,6 +201,20 @@ All fields below are optional; documents without them render byte-identically.
   never moves the camera; zoom stays with the controls and the wheel) and
   `detail_placement` (`"anchored"` beside the element, default, or `"docked"`
   in the upper left corner).
+- `meta.viewer.links`: one to four toolbar links to documents delivered next to
+  the HTML, e.g. `[{ "label": "Resource list", "href": "it-briefing.html" }]`.
+  Rendered before Present in the toolbar style; they open in the same tab, so
+  Back returns to the diagram. `label` is one line of up to 40 characters.
+- `components[].resourceRef`: a reference into such a document, e.g.
+  `"it-briefing.html#res-4"`. The node's popover shows it as a link under the
+  notes; a pinned connection does not.
+- Both `href` and `resourceRef` are a bare sibling file name with an optional
+  `#fragment` (`[A-Za-z0-9][A-Za-z0-9._-]*`, fragment `[A-Za-z][A-Za-z0-9_-]*`):
+  no scheme, no `/`, no `..`, no query. The target file is not checked; deliver
+  it beside the HTML.
+- The way back from such a document is the existing deep link
+  `<diagram>.html#focus=<component id>`: it selects the node, highlights it and
+  opens its popover. Unknown ids are ignored.
 
 ## Repository evidence
 

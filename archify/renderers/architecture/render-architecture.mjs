@@ -1141,6 +1141,16 @@ function collectReaderDetails() {
   return Object.keys(nodes).length || Object.keys(edges).length ? { nodes, edges } : null;
 }
 
+// Fork: per-node references into a sibling document (resource list). Emitted
+// only when authored; validated by the schema and again in applyTemplate.
+function collectResourceRefs() {
+  const nodes = {};
+  for (const c of asArray(arch.components)) {
+    if (typeof c.resourceRef === 'string' && c.resourceRef) nodes[c.id] = c.resourceRef;
+  }
+  return Object.keys(nodes).length ? { nodes } : null;
+}
+
 validateArchitecture();
 if (layoutJsonMode) {
   console.log(JSON.stringify(buildLayoutReport(), null, 2));
@@ -1155,4 +1165,5 @@ writeDiagram({
   cards: arch.cards,
   sourceEvidence,
   readerDetails: collectReaderDetails(),
+  resourceRefs: collectResourceRefs(),
 });

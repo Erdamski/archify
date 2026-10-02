@@ -50,7 +50,7 @@ export async function loadDiagramWithBrandMarks(options) {
 const START_TYPES = new Set(['architecture', 'workflow', 'sequence', 'dataflow', 'lifecycle']);
 
 // Common CLI tail: fill the template and write the standalone HTML file.
-export function writeDiagram({ outPath, template, diagramType, meta, svg, cards, sourceEvidence = null, readerDetails = null }) {
+export function writeDiagram({ outPath, template, diagramType, meta, svg, cards, sourceEvidence = null, readerDetails = null, resourceRefs = null }) {
   if (!START_TYPES.has(diagramType)) throw new Error(`writeDiagram: unknown diagram type ${JSON.stringify(diagramType)}`);
   const outputGuard = outputPathGuards.get(outPath);
   if (outputGuard) resolveOutputPath(outputGuard);
@@ -66,6 +66,7 @@ export function writeDiagram({ outPath, template, diagramType, meta, svg, cards,
     sourceEvidence,
     readerDetails,
     viewerOptions: meta.viewer || null,
+    resourceRefs,
   }));
   outputPathGuards.delete(outPath);
   console.log(outPath);

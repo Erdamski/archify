@@ -98,6 +98,7 @@
           "tag": { "type": "string" },
           "details": { "$ref": "common.schema.json#/$defs/details" },
           "accent": { "$ref": "common.schema.json#/$defs/accent" },
+          "resourceRef": { "$ref": "common.schema.json#/$defs/relativeRef" },
           "brand": { "$ref": "common.schema.json#/$defs/brandMark" },
           "sources": {
             "type": "array",

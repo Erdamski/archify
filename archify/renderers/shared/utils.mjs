@@ -108,6 +108,168 @@ const SUBTITLE_SLOT_RE = /^([ \t]*)<p class="subtitle">\[Subtitle description\]<
 const GUIDED_VIEWS_PLACEHOLDER = '<!-- ARCHIFY:GUIDED_VIEWS_DATA -->';
 const SOURCE_EVIDENCE_PLACEHOLDER = '    <!-- ARCHIFY:SOURCE_EVIDENCE_DATA -->';
 const I18N_PLACEHOLDER = '    <!-- ARCHIFY:I18N_DATA -->';
+// Fork: toolbar links and per-node resource references. The slot line is
+// removed without trace when nothing is authored, so documents without
+// meta.viewer.links or components[].resourceRef keep their exact output.
+const VIEWER_LINKS_SLOT_RE = /^[ \t]*<!-- ARCHIFY:VIEWER_LINKS_SLOT -->[ \t]*\r?\n/m;
+// Same rule as common.schema.json#/$defs/relativeRef, checked again here so a
+// caller that skips validation still cannot emit a scheme, a path or `..`.
+export const RELATIVE_REF_RE = /^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]*(?:#[A-Za-z][A-Za-z0-9_-]*)?$/;
+const RESOURCE_REF_TEXT = {
+  en: 'View in the resource list',
+  'zh-CN': '在资源清单中查看',
+  de: 'In der Ressourcenliste ansehen',
+};
+
+function assertRelativeRef(value, where) {
+  if (typeof value !== 'string' || value.length > 200 || !RELATIVE_REF_RE.test(value)) {
+    throw new Error(`applyTemplate: ${where} must be a sibling file name with an optional #fragment, got ${JSON.stringify(value)}`);
+  }
+}
+
+// Widths are estimates in rem for the header reserve beside the fixed toolbar:
+// 0.75rem text at roughly 0.48rem per character plus padding, border and gap.
+function viewerLinksReserve(links) {
+  const rem = links.reduce((sum, link) => sum + Array.from(link.label).length * 0.48 + 2.375, 0);
+  return `${Math.ceil(rem * 4) / 4}rem`;
+}
+
+function viewerLinksStyle(links, hasResourceRefs) {
+  const rules = [];
+  if (links.length) {
+    const reserve = viewerLinksReserve(links);
+    const headers = '.header,\n    html[data-preset="signal-flow"] .header,\n    html[data-preset="blueprint"] .header,\n    html[data-preset="editorial"] .header';
+    rules.push(
+      // Mirrors `.toolbar button` in the template so the link reads as one more toolbar control.
+      `    .toolbar a.archify-viewer-link {
+      background: var(--toolbar-bg);
+      color: var(--toolbar-text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.625rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: normal;
+      cursor: pointer;
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      min-height: 2.75rem;
+      text-decoration: none;
+    }
+    .toolbar a.archify-viewer-link:hover {
+      background: var(--toolbar-hover);
+      border-color: color-mix(in srgb, var(--arrow) 62%, var(--toolbar-border));
+    }
+    .toolbar a.archify-viewer-link:focus-visible {
+      outline: 2px solid var(--frontend-stroke);
+      outline-offset: 2px;
+    }
+    html[data-preset="editorial"] .toolbar a.archify-viewer-link { border-radius: 0.3rem; }
+    ${headers} { padding-right: calc(29.5rem + ${reserve}); }
+    html[data-present="true"]:not([data-embed="true"]) .header { padding-right: calc(23rem + ${reserve}); }
+    @media (max-width: 720px) {
+      ${headers.replaceAll('\n    ', '\n      ')},
+      html[data-present="true"]:not([data-embed="true"]) .header { padding-right: 0; }
+      html[data-present="true"]:not([data-embed="true"]) .toolbar a.archify-viewer-link {
+        min-height: 2.75rem;
+        padding: 0.42rem 0.58rem;
+      }
+    }
+    @media (max-width: 360px) {
+      .toolbar a.archify-viewer-link { padding-right: 0.58rem; padding-left: 0.58rem; }
+    }`);
+  }
+  if (hasResourceRefs) {
+    rules.push(`    .archify-resource-ref-wrap { margin-top: 0.5rem; font-size: 0.75rem; }
+    .archify-resource-ref-wrap[hidden] { display: none; }
+    .archify-resource-ref { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 0.18em; }
+    .archify-resource-ref:focus-visible { outline: 2px solid var(--frontend-stroke); outline-offset: 2px; border-radius: 0.2rem; }`);
+  }
+  return `  <style id="archify-viewer-links-style">\n${rules.join('\n')}\n  </style>\n`;
+}
+
+function viewerLinksMarkup(links) {
+  return links.map((link) => `    <a class="archify-viewer-link" href="${esc(link.href)}">${esc(link.label)}</a>\n`).join('');
+}
+
+// Shows the node's resource reference as a link under the reader notes. The
+// focus module owns the popover; this observer only follows its state, so the
+// shared viewer script stays untouched for documents without references.
+function resourceRefScript(resourceRefs, locale) {
+  const text = RESOURCE_REF_TEXT[locale] || RESOURCE_REF_TEXT.en;
+  return `    <script id="archify-resource-refs" type="application/json">${serializeScriptJson(resourceRefs)}</script>
+    <script id="archify-resource-ref-script">
+    (function () {
+      var refs = {};
+      try {
+        var data = JSON.parse(document.getElementById('archify-resource-refs').textContent) || {};
+        refs = data.nodes && typeof data.nodes === 'object' ? data.nodes : {};
+      } catch (_) {}
+      var chip = document.getElementById('focus-chip');
+      var notes = document.getElementById('focus-notes');
+      var idNode = document.getElementById('focus-id');
+      var svg = document.querySelector('.diagram-container svg');
+      if (!chip || !notes || !idNode || !svg) return;
+      var safe = ${RELATIVE_REF_RE.toString()};
+      var wrap = document.createElement('div');
+      wrap.className = 'archify-resource-ref-wrap';
+      wrap.hidden = true;
+      var link = document.createElement('a');
+      link.className = 'archify-resource-ref';
+      link.textContent = ${serializeScriptJson(text)};
+      wrap.appendChild(link);
+      notes.parentNode.insertBefore(wrap, notes.nextSibling);
+      function sync() {
+        var id = svg.getAttribute('data-focus-active') || '';
+        // A pinned relationship keeps its source node active but shows the
+        // connection's notes; the node's reference would mislabel it.
+        var shown = !chip.hidden && !idNode.hidden && idNode.textContent === id &&
+          !svg.hasAttribute('data-relationship-pin-active');
+        var href = shown && Object.prototype.hasOwnProperty.call(refs, id) && typeof refs[id] === 'string' && safe.test(refs[id]) ? refs[id] : '';
+        // Write only on change: the observer below also sees these mutations.
+        if (href) {
+          if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+          if (wrap.hidden) wrap.hidden = false;
+        } else {
+          if (link.hasAttribute('href')) link.removeAttribute('href');
+          if (!wrap.hidden) wrap.hidden = true;
+        }
+      }
+      var observer = new MutationObserver(sync);
+      observer.observe(chip, { attributes: true, attributeFilter: ['hidden'] });
+      observer.observe(idNode, { attributes: true, childList: true, characterData: true, subtree: true });
+      observer.observe(svg, { attributes: true, attributeFilter: ['data-focus-active', 'data-relationship-pin-active'] });
+      sync();
+    })();
+    </script>
+`;
+}
+
+function applyViewerLinks(template, { links, resourceRefs, locale }) {
+  const hasLinks = links.length > 0;
+  const hasResourceRefs = !!resourceRefs;
+  if (!hasLinks && !hasResourceRefs) return template.replace(VIEWER_LINKS_SLOT_RE, '');
+  for (const [index, link] of links.entries()) assertRelativeRef(link.href, `meta.viewer.links[${index}].href`);
+  if (hasResourceRefs) {
+    for (const [id, href] of Object.entries(resourceRefs.nodes)) assertRelativeRef(href, `resourceRef of ${JSON.stringify(id)}`);
+  }
+  if (hasLinks && !VIEWER_LINKS_SLOT_RE.test(template)) {
+    throw new Error('applyTemplate: meta.viewer.links requires the <!-- ARCHIFY:VIEWER_LINKS_SLOT --> line in the template');
+  }
+  if (template.split('</head>').length !== 2 || (hasResourceRefs && template.split('</body>').length !== 2)) {
+    throw new Error('applyTemplate: viewer links and resource references need exactly one </head> and </body> in the template');
+  }
+  let out = template.replace(VIEWER_LINKS_SLOT_RE, () => viewerLinksMarkup(links));
+  out = out.replace('</head>', () => `${viewerLinksStyle(links, hasResourceRefs)}</head>`);
+  if (hasResourceRefs) out = out.replace('</body>', () => `${resourceRefScript(resourceRefs, locale)}</body>`);
+  return out;
+}
 
 function serializeScriptJson(value) {
   return JSON.stringify(value)
@@ -134,6 +296,7 @@ export function applyTemplate(template, {
   sourceEvidence = null,
   readerDetails = null,
   viewerOptions = null,
+  resourceRefs = null,
 }) {
   if (!SVG_SLOT_RE.test(template)) {
     throw new Error('applyTemplate: template missing ARCHIFY:SVG_SLOT sentinel');
@@ -166,12 +329,26 @@ export function applyTemplate(template, {
     : '';
   // Optional payloads are emitted only when authored, so documents without
   // reader details or viewer options keep their exact previous output.
+  // Toolbar links are rendered as markup, not read by the viewer script, so
+  // they leave the viewer options payload; options that held only links emit
+  // nothing. Without links the payload is the authored object as before.
+  let viewerLinks = [];
+  let emittedViewerOptions = viewerOptions;
+  if (viewerOptions && Object.prototype.hasOwnProperty.call(viewerOptions, 'links')) {
+    const { links, ...rest } = viewerOptions;
+    viewerLinks = Array.isArray(links) ? links : [];
+    emittedViewerOptions = Object.keys(rest).length ? rest : null;
+  }
   const optionalData = [
     readerDetails ? `    <script id="archify-reader-details" type="application/json">${serializeScriptJson(readerDetails)}</script>` : '',
-    viewerOptions ? `    <script id="archify-viewer-options" type="application/json">${serializeScriptJson(viewerOptions)}</script>` : '',
+    emittedViewerOptions ? `    <script id="archify-viewer-options" type="application/json">${serializeScriptJson(emittedViewerOptions)}</script>` : '',
   ].filter(Boolean).map((line) => `\n${line}`).join('');
   const i18nData = `    <script id="archify-i18n-data" type="application/json">${i18nJson}</script>${optionalData}`;
-  const localizedTemplate = localizeTemplate(template, resolvedLocale);
+  const localizedTemplate = applyViewerLinks(localizeTemplate(template, resolvedLocale), {
+    links: viewerLinks,
+    resourceRefs,
+    locale: resolvedLocale,
+  });
   const templateWithI18n = localizedTemplate.includes(I18N_PLACEHOLDER)
     ? localizedTemplate.replace(I18N_PLACEHOLDER, () => i18nData)
     : localizedTemplate.replace(GUIDED_VIEWS_PLACEHOLDER, () => `${i18nData}\n    ${GUIDED_VIEWS_PLACEHOLDER}`);
